@@ -1,6 +1,7 @@
 import json
 import logging
 import haversine
+import traceback
 from flask import Flask, request
 
 from src.MongoIO import MongoIO
@@ -8,6 +9,40 @@ from src.MongoIO import MongoIO
 app = Flask(__name__)
 mongo_client = MongoIO()
 
+def exception_process_and_response(api):
+    def wrapper():
+        try:
+            res = api()
+            response_body = gen_response_json(
+                status='success',
+                code=200,
+                message='成功取得資料',
+                data=res
+            )
+        except AssertionError as error:
+            response_body = gen_response_json(
+                status='warning',
+                code=422,
+                message=f'參數錯誤: {error}',
+            )
+        except ValueError as error:
+            response_body = gen_response_json(
+                status='warning',
+                code=400,
+                message=f'執行錯誤: {error}'
+            )
+        except Exception as error:
+            print(traceback.format_exc())
+            response_body = gen_response_json(
+                status='error',
+                code=503,
+                message=f'錯誤: {error}'
+            )
+        finally:
+            app.response_class(
+                response=json.dumps(response_body, ensure_ascii=False),
+                mimetype='application/json'
+            )
 
 def gen_response_json(status, code, message, data={}) -> dict:
     return {
@@ -28,7 +63,8 @@ def transform_coordinate(loc) -> tuple[float, float]:
     return (float(lat), float(long))
 
 
-@app.route('/get_near_parking_location', methods=['POST'])
+@app.route('/get_near_parking_location', methods=['POST'], endpoint='get_near_parking_location')
+@exception_process_and_response
 def get_near_parking_location():
     """
     拿使用者座標方圓兩公里內的所有停車格經緯度
@@ -51,15 +87,11 @@ def get_near_parking_location():
                 'distance': dist
             })
 
-    return gen_response_json(
-        status='success',
-        code=200,
-        message='成功取得資料',
-        data=near_parking_loc
-    )
+    return near_parking_loc
 
 
-@app.route('/get_parking_space_density', methods=['POST'])
+@app.route('/get_parking_space_density', methods=['POST'], endpoint='get_parking_space_density')
+@exception_process_and_response
 def get_parking_space_density():
     """
     拿指定停車場的狀態，紅: 接近滿，黃: 半滿，綠: 空
@@ -74,18 +106,10 @@ def get_parking_space_density():
     if len(parking_data) == 0:
         return "No Data!"
 
-    response = None
     density = int(parking_data[0]['num']) / volume
     if density > 0.8:
-        response = 'Red'
+        return 'Red'
     elif 0.5 < density <= 0.8:
-        response = 'Yellow'
+        return 'Yellow'
     else:
-        response = 'Green'
-
-    return gen_response_json(
-        status='success',
-        code=200,
-        message='成功取得資料',
-        data=response
-    )
+        return 'Green'
