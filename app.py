@@ -9,6 +9,7 @@ from src.MongoIO import MongoIO
 app = Flask(__name__)
 mongo_client = MongoIO()
 
+
 def exception_process_and_response(api):
     def wrapper():
         try:
@@ -43,6 +44,7 @@ def exception_process_and_response(api):
                 response=json.dumps(response_body, ensure_ascii=False),
                 mimetype='application/json'
             )
+
 
 def gen_response_json(status, code, message, data={}) -> dict:
     return {
@@ -113,3 +115,11 @@ def get_parking_space_density():
         return 'Yellow'
     else:
         return 'Green'
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=3000, debug=True)
+else:
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
