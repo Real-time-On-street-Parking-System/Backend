@@ -40,10 +40,12 @@ def exception_process_and_response(api):
                 message=f'錯誤: {error}'
             )
         finally:
-            app.response_class(
+            return app.response_class(
                 response=json.dumps(response_body, ensure_ascii=False),
                 mimetype='application/json'
             )
+
+    return wrapper
 
 
 def gen_response_json(status, code, message, data={}) -> dict:
@@ -76,7 +78,7 @@ def get_near_parking_location():
     request_body = request.get_json()
     user_loc = request_body.get('location')
     user_coordinate = transform_coordinate(user_loc)
-    all_parking_info = mongo_client.get_parking_info()
+    all_parking_info = mongo_client.get_all_parking_info()
 
     near_parking_loc = []
     for loc in all_parking_info:
