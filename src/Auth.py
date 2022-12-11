@@ -1,6 +1,5 @@
 from flask import request
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
 
 
 class Auth:
@@ -15,10 +14,7 @@ class Auth:
         """
 
         to_encode_data = data.copy()
-
-        expire_time = datetime.utcnow() + timedelta(days=30)
         to_encode_data.update({
-            'exp': expire_time,
             'secret': cls.SECRET
         })
         encoded_jwt_token = jwt.encode(

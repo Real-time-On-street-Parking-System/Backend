@@ -66,12 +66,6 @@ def exception_process_and_response(api):
     return exception_process_and_response
 
 
-@app.route('/get_access_token', methods=['GET'], endpoint='get_access_token')
-@exception_process_and_response
-def get_access_token():
-    return Auth.crate_access_token()
-
-
 @app.route('/get_near_parking_location', methods=['POST'], endpoint='get_near_parking_location')
 @exception_process_and_response
 @Auth.verify_token
