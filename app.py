@@ -1,17 +1,29 @@
 import json
 import logging
-import haversine
 import traceback
+from jose import JWTError
+from haversine import haversine
 from flask import Flask, request
 
+from src.Auth import Auth
 from src.MongoIO import MongoIO
+from src.utils import (
+    gen_response_json,
+    transform_coordinate,
+)
 
 app = Flask(__name__)
 mongo_client = MongoIO()
 
 
 def exception_process_and_response(api):
-    def wrapper():
+    """
+    (decorator) 處理錯誤跟回傳資料
+    :params app: Flask app instance
+    :parama api (function): api function
+    """
+
+    def exception_process_and_response():
         try:
             res = api()
             response_body = gen_response_json(
@@ -19,6 +31,12 @@ def exception_process_and_response(api):
                 code=200,
                 message='成功取得資料',
                 data=res
+            )
+        except JWTError as error:
+            response_body = gen_response_json(
+                status='error',
+                code=422,   # 暫定 422
+                message=f'權限不足: {error}'
             )
         except AssertionError as error:
             response_body = gen_response_json(
@@ -45,30 +63,18 @@ def exception_process_and_response(api):
                 mimetype='application/json'
             )
 
-    return wrapper
+    return exception_process_and_response
 
 
-def gen_response_json(status, code, message, data={}) -> dict:
-    return {
-        'status': status,
-        'code': code,
-        'message': message,
-        'data': data,
-    }
-
-
-def transform_coordinate(loc) -> tuple[float, float]:
-    """
-    轉換位置為經緯度的 tuple
-    :params loc (str): 字串的經緯度
-    """
-
-    lat, long = map(lambda cor_str: cor_str.strip(), loc.split(','))
-    return (float(lat), float(long))
+@app.route('/get_access_token', methods=['GET'], endpoint='get_access_token')
+@exception_process_and_response
+def get_access_token():
+    return Auth.crate_access_token()
 
 
 @app.route('/get_near_parking_location', methods=['POST'], endpoint='get_near_parking_location')
 @exception_process_and_response
+@Auth.verify_token
 def get_near_parking_location():
     """
     拿使用者座標方圓兩公里內的所有停車格經緯度
@@ -96,6 +102,7 @@ def get_near_parking_location():
 
 @app.route('/get_parking_space_density', methods=['POST'], endpoint='get_parking_space_density')
 @exception_process_and_response
+@Auth.verify_token
 def get_parking_space_density():
     """
     拿指定停車場的狀態，紅: 接近滿，黃: 半滿，綠: 空
