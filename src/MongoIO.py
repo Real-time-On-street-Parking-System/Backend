@@ -1,5 +1,4 @@
 import pymongo
-import haversine
 from configobj import ConfigObj
 from datetime import datetime
 
@@ -31,7 +30,8 @@ class MongoIO:
 
         data = {
             "loc": parking_loc,
-            "volume": parking_volume
+            "volume": parking_volume,
+            "online": False
         }
         res = self.__parking_space_info.insert_one(data)
 
@@ -60,7 +60,11 @@ class MongoIO:
         """
 
         parking_info_list = []
-        for parking_info in self.__parking_space_info.find():
+        # 取得上線中的停車地點
+        online_parking_space_info = self.__parking_space_info.find({
+            "online": True
+        })
+        for parking_info in online_parking_space_info:
             parking_info_list.append(parking_info['loc'])
         return parking_info_list
 
@@ -70,17 +74,23 @@ class MongoIO:
         :params loc (str): 停車格經緯度, ex: "25.024773,121.527724"
         """
 
+        if not self.is_parking_location_online(loc):
+            return -1
+
         res = self.__parking_space_info.find({
             "loc": loc
         })
 
-        return res.get('volume')
+        return res['volume']
 
     def get_parking_data(self, loc) -> list[dict]:
         """
         拿指定座標的停車格所有時間的資料
         :params loc (str): 停車格經緯度, ex: "25.024773,121.527724"
         """
+
+        if not self.is_parking_location_online(loc):
+            return []
 
         parking_data = []
         res_data = self.__parking_space_data.aggregate(
@@ -134,3 +144,15 @@ class MongoIO:
         res = collection.delete_many(condition)
         print(res.deleted_count, " documents deleted.")
         return res.deleted_count
+
+    def is_parking_location_online(self, loc) -> bool:
+        """
+        回傳指定地點是否在線上
+        :params loc (str): 停車格經緯度, ex: "25.024773,121.527724"
+        """
+
+        res = self.__parking_space_info.find({
+            'loc': loc
+        })
+
+        return res['status']
