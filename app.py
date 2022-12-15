@@ -7,6 +7,7 @@ from flask import Flask, request
 
 from src.Auth import Auth
 from src.MongoIO import MongoIO
+from src.InputCheck import InputCheck
 from src.utils import (
     gen_response_json,
     transform_coordinate,
@@ -75,8 +76,7 @@ def get_near_parking_location():
     :params user_loc (str): 使用者所在經緯度, ex: "25.024773,121.527724"
     """
 
-    request_body = request.get_json()
-    user_loc = request_body.get('location')
+    user_loc = InputCheck.check_location_coordinate(request)
     user_coordinate = transform_coordinate(user_loc)
     all_parking_info = mongo_client.get_all_parking_info()
 
@@ -103,9 +103,7 @@ def get_parking_space_density():
     :params parking_loc (str): 停車格經緯度, ex: "25.024773,121.527724"
     """
 
-    request_body = request.get_json()
-    parking_loc = request_body.get('location')
-
+    parking_loc = InputCheck.check_location_coordinate(request)
     volume = mongo_client.get_parking_volume(parking_loc)
     parking_data = mongo_client.get_parking_data(parking_loc)
     if len(parking_data) == 0:
