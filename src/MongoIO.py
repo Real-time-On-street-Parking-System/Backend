@@ -21,7 +21,7 @@ class MongoIO:
         self.__port = mongo_config['port']
         self.__db = mongo_config['db']
 
-    def create_parking_space(self, parking_loc, parking_volume) -> str:
+    def create_parking_space(self, name, parking_loc, parking_volume) -> str:
         """
         建立指定停車場的最大車位數
         :params parking_loc (str): 停車格經緯度, ex: "25.024773,121.527724"
@@ -29,6 +29,7 @@ class MongoIO:
         """
 
         data = {
+            "name": name,
             "loc": parking_loc,
             "volume": parking_volume,
             "online": False
@@ -65,7 +66,10 @@ class MongoIO:
             "online": True
         })
         for parking_info in online_parking_space_info:
-            parking_info_list.append(parking_info['loc'])
+            parking_info_list.append({
+                'name': parking_info['name'],
+                'loc': parking_info['loc']
+            })
         return parking_info_list
 
     def get_parking_volume(self, loc) -> int:
