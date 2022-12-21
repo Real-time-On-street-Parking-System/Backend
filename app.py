@@ -79,7 +79,7 @@ def get_near_parking_location():
 
     InputCheck.check_location_coordinate(request)
     request_body = request.get_json()
-    user_loc = request_body.get('user_loc')
+    user_loc = request_body.get('location')
     target_keywod = request_body.get('target')
 
     if target_keywod == '師大':
