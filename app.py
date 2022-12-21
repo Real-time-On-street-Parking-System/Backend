@@ -2,8 +2,9 @@ import json
 import logging
 import traceback
 from jose import JWTError
-from haversine import haversine
+from random import random
 from flask import Flask, request
+from haversine import haversine, Unit
 
 from src.Auth import Auth
 from src.MongoIO import MongoIO
@@ -76,19 +77,38 @@ def get_near_parking_location():
     :params user_loc (str): 使用者所在經緯度, ex: "25.024773,121.527724"
     """
 
-    user_loc = InputCheck.check_location_coordinate(request)
+    InputCheck.check_location_coordinate(request)
+    request_body = request.get_json()
+    user_loc = request_body.get('user_loc')
+    target_keywod = request_body.get('target')
+
+    if target_keywod == '師大':
+        target_loc = '25.026082243234193, 121.52754417935991'
+    elif target_keywod == '大安森林公園':
+        target_loc = '25.033124228014202, 121.53539308757487'
+    else:
+        return []
+
     user_coordinate = transform_coordinate(user_loc)
+    target_coordinate = transform_coordinate(target_loc)
     all_parking_info = mongo_client.get_all_parking_info()
 
     near_parking_loc = []
-    for loc in all_parking_info:
+    for parking_info in all_parking_info:
+        loc = parking_info['loc']
         parking_coordinate = transform_coordinate(loc)
-        dist = haversine(user_coordinate, parking_coordinate)
+        dist = haversine(target_coordinate, parking_coordinate)
         # TODO: distance limit record in config file
         if dist < 2.0:
+            dist_between_destination = haversine(
+                user_coordinate, parking_coordinate,
+                unit=Unit.METERS
+            )
+            dist_between_destination = round(dist_between_destination)
             near_parking_loc.append({
+                'name': parking_info['name'],
                 'loc': loc,
-                'distance': dist
+                'distance': dist_between_destination
             })
 
     return near_parking_loc
@@ -106,16 +126,27 @@ def get_parking_space_density():
     parking_loc = InputCheck.check_location_coordinate(request)
     volume = mongo_client.get_parking_volume(parking_loc)
     parking_data = mongo_client.get_parking_data(parking_loc)
+
     if len(parking_data) == 0:
-        return "No Data!"
+        return {}
 
     density = int(parking_data[0]['num']) / volume
     if density > 0.8:
-        return 'Red'
+        return {
+            'color': '#BD2440',
+            'color_after_five_minutes': '#F1C40F' if random() > 0.65 else '#BD2440'
+        }
     elif 0.5 < density <= 0.8:
-        return 'Yellow'
+        other_color = '#2ECC71' if random() >= 0.5 else '#BD2440'
+        return {
+            'color': '#F1C40F',
+            'color_after_five_minutes': '#F1C40F' if random() > 0.65 else other_color
+        }
     else:
-        return 'Green'
+        return {
+            'color': '#BD2440',
+            'color_after_five_minutes': '#2ECC71' if random() > 0.65 else '#BD2440'
+        }
 
 
 if __name__ == '__main__':
